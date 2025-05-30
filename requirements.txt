@@ -1,0 +1,5 @@
+pyTelegramBotAPI
+pyrebase4
+Flask
+requests
+python-dotenv
