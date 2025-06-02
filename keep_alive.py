@@ -1,8 +1,9 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from threading import Thread
 import pyrebase
 import datetime
 import os
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -37,7 +38,10 @@ def paylink_webhook():
             "paid_at": str(datetime.datetime.now().date())
         })
 
-    return jsonify({"message": "OK"}), 200
+    # نرجع رد JSON صريح مع الهيدر
+    response = make_response(json.dumps({"message": "OK"}), 200)
+    response.headers['Content-Type'] = 'application/json'
+    return response
 
 def run():
     app.run(host='0.0.0.0', port=8080)
