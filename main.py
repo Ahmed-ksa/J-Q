@@ -122,7 +122,15 @@ def create_checkout_link(internal_id):
     }
 
     response = requests.post("https://restapi.paylink.sa/api/invoice", headers=headers, json=payload)
-    data = response.json()
+
+    # طباعة حالة الاستجابة ومحتواها للمساعدة في التشخيص
+    print(f"Status Code: {response.status_code}")
+    print(f"Response Text: {response.text}")
+
+    try:
+        data = response.json()
+    except ValueError:
+        raise Exception("❌ الرد من Paylink ليس بصيغة JSON: " + response.text)
 
     if "shortUrl" in data:
         return data["shortUrl"]
