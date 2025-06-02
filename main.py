@@ -22,19 +22,18 @@ firebase = pyrebase.initialize_app(firebaseConfig)
 db = firebase.database()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+TAP_SECRET_KEY = os.getenv("TAP_SECRET_KEY")
 ADMIN_ID = os.getenv("ADMIN_ID")
 
 bot = TeleBot(BOT_TOKEN, parse_mode="HTML")
 
 @bot.message_handler(commands=['start', 'help'])
 def handle_start(message):
-    bot.reply_to(message, """👋 أهلاً بك!
-
-📋 الأوامر المتاحة:
-🟢 /subscribe - الاشتراك بالخدمة
-🔄 /renew - تجديد الاشتراك
-📊 /status - حالة الاشتراك
-🔐 /credentials - بيانات الدخول""")
+    bot.reply_to(message, "👋 مرحبًا! الأوامر المتاحة:\n\n"
+                          "🟢 /subscribe - الاشتراك بالخدمة\n"
+                          "🔄 /renew - تجديد الاشتراك\n"
+                          "📊 /status - حالة الاشتراك\n"
+                          "🔐 /credentials - اسم المستخدم وكلمة المرور")
 
 @bot.message_handler(commands=['subscribe', 'renew'])
 def handle_subscribe(message):
@@ -90,7 +89,7 @@ def get_credentials(message):
 @bot.message_handler(func=lambda message: message.text.strip().startswith("تغيير السعر"))
 def change_price(message):
     if str(message.chat.id) != ADMIN_ID:
-        return bot.reply_to(message, "🚫 ليس لديك صلاحية تعديل السعر.")
+        return bot.reply_to(message, "❌ ليس لديك صلاحية تعديل السعر.")
     try:
         parts = message.text.strip().split()
         if len(parts) < 3:
@@ -107,34 +106,28 @@ def get_current_price():
 
 def create_checkout_link(internal_id):
     headers = {
-        "Authorization": f"Bearer {os.getenv('PAYLINK_SECRET_KEY')}",
+        "Authorization": "Bearer " + TAP_SECRET_KEY,
         "Content-Type": "application/json"
     }
-
     payload = {
-        "clientId": internal_id,
         "amount": get_current_price(),
         "currency": "SAR",
-        "note": "💳 اشتراك عبر بوت التليجرام",
-        "callBackUrl": "https://t.me/JQSubscriptions_bot",
-        "cancelUrl": "https://t.me/JQSubscriptions_bot",
-        "orderNumber": internal_id
+        "customer": {
+            "first_name": "TelegramUser",
+            "email": f"{internal_id}@example.com"
+        },
+        "source": {"id": "src_all"},
+        "redirect": {
+            "url": "https://yourdomain.com/success"
+        },
+        "post": {
+            "url": "https://yourdomain.com/tap_webhook"
+        },
+        "metadata": {
+            "internal_id": internal_id
+        }
     }
-
-    response = requests.post("https://restapi.paylink.sa/api/invoice", headers=headers, json=payload)
-
-    # طباعة حالة الاستجابة ومحتواها للمساعدة في التشخيص
-    print(f"Status Code: {response.status_code}")
-    print(f"Response Text: {response.text}")
-
-    try:
-        data = response.json()
-    except ValueError:
-        raise Exception("❌ الرد من Paylink ليس بصيغة JSON: " + response.text)
-
-    if "shortUrl" in data:
-        return data["shortUrl"]
-    else:
-        raise Exception(f"❌ فشل إنشاء الفاتورة: {data}")
+    response = requests.post("https://api.tap.company/v2/charges", headers=headers, json=payload)
+    return response.json()["transaction"]["url"]
 
 bot.polling()
