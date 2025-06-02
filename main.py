@@ -121,7 +121,7 @@ def create_checkout_link(internal_id):
         "orderNumber": internal_id
     }
 
-    response = requests.post("https://rest-api.paylink.sa/api/v2/invoice", headers=headers, json=payload)
+    response = requests.post("https://restapi.paylink.sa/api/invoice", headers=headers, json=payload)
     data = response.json()
 
     if "shortUrl" in data:
