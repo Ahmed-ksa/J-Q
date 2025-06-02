@@ -37,7 +37,7 @@ def paylink_webhook():
             "paid_at": str(datetime.datetime.now().date())
         })
 
-    return jsonify({"success": True})
+    return jsonify({"message": "OK"}), 200
 
 def run():
     app.run(host='0.0.0.0', port=8080)
