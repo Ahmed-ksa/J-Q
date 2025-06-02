@@ -1,4 +1,3 @@
-
 from telebot import TeleBot
 import requests
 import datetime
@@ -29,27 +28,22 @@ bot = TeleBot(BOT_TOKEN, parse_mode="HTML")
 
 @bot.message_handler(commands=['start', 'help'])
 def handle_start(message):
-    bot.reply_to(message, "👋 أهلاً بك!
+    bot.reply_to(message, """👋 أهلاً بك!
 
-"
-                          "📋 الأوامر المتاحة:
-"
-                          "🟢 /subscribe - الاشتراك بالخدمة
-"
-                          "🔄 /renew - تجديد الاشتراك
-"
-                          "📊 /status - حالة الاشتراك
-"
-                          "🔐 /credentials - بيانات الدخول")
+📋 الأوامر المتاحة:
+🟢 /subscribe - الاشتراك بالخدمة
+🔄 /renew - تجديد الاشتراك
+📊 /status - حالة الاشتراك
+🔐 /credentials - بيانات الدخول""")
 
 @bot.message_handler(commands=['subscribe', 'renew'])
 def handle_subscribe(message):
     chat_id = str(message.chat.id)
     url = create_checkout_link(chat_id)
-    bot.send_message(chat_id, f'🔗 <b>رابط الدفع الخاص بك:</b>
+    bot.send_message(chat_id, f"""🔗 <b>رابط الدفع الخاص بك:</b>
 <a href="{url}">اضغط هنا لإتمام عملية الدفع</a>
 
-📩 بعد الدفع سيتم إرسال اسم المستخدم وكلمة المرور الخاصة بك تلقائيًا.')
+📩 بعد الدفع سيتم إرسال اسم المستخدم وكلمة المرور الخاصة بك تلقائيًا.""")
 
 @bot.message_handler(commands=['status'])
 def check_status(message):
@@ -67,8 +61,7 @@ def check_status(message):
         bot.reply_to(message, f"📛 انتهى اشتراكك بتاريخ {expiry_str}.")
     else:
         days_left = (expiry_date - today).days
-        bot.reply_to(message, f"✅ اشتراكك نشط. ينتهي بتاريخ {expiry_str}.
-🕓 متبقي: {days_left} يوم.")
+        bot.reply_to(message, f"✅ اشتراكك نشط. ينتهي بتاريخ {expiry_str}.\n🕓 متبقي: {days_left} يوم.")
 
 @bot.message_handler(commands=['credentials'])
 def get_credentials(message):
@@ -86,17 +79,13 @@ def get_credentials(message):
         bot.reply_to(message, f"📛 انتهى اشتراكك بتاريخ {expiry_str}. لا يمكن عرض البيانات.")
     else:
         password = user.get("password", "غير متوفر")
-        bot.send_message(chat_id, f"🔐 <b>بيانات حسابك:</b>
+        bot.send_message(chat_id, f"""🔐 <b>بيانات حسابك:</b>
 
-"
-                                  f"👤 <b>اسم المستخدم:</b> <code>{chat_id}</code>
-"
-                                  f"🔒 <b>كلمة المرور:</b> <code>{password}</code>
-"
-                                  f"📅 <b>تاريخ الانتهاء:</b> <code>{expiry_str}</code>
+👤 <b>اسم المستخدم:</b> <code>{chat_id}</code>
+🔒 <b>كلمة المرور:</b> <code>{password}</code>
+📅 <b>تاريخ الانتهاء:</b> <code>{expiry_str}</code>
 
-"
-                                  f"⚠️ يُمنع مشاركة الحساب مع الآخرين.")
+⚠️ يُمنع مشاركة الحساب مع الآخرين.""")
 
 @bot.message_handler(func=lambda message: message.text.strip().startswith("تغيير السعر"))
 def change_price(message):
@@ -110,8 +99,7 @@ def change_price(message):
         db.child("config").child("price").set(new_price)
         bot.reply_to(message, f"✅ تم تحديث السعر إلى {new_price} ريال.")
     except:
-        bot.reply_to(message, "⚠️ الصيغة الصحيحة:
-تغيير السعر 500")
+        bot.reply_to(message, "⚠️ الصيغة الصحيحة:\nتغيير السعر 500")
 
 def get_current_price():
     price = db.child("config").child("price").get().val()
