@@ -247,13 +247,12 @@ def send_user_guide(chat_id):
     else:
         bot.send_message(chat_id, "⚠️ لا يتوفر دليل المستخدم حاليًا. يرجى إبلاغ الإدارة.")
 
-# <<<<<<< تم حذف دالة change_price القديمة هنا، حيث تم دمج وظيفتها في set_config_value الجديدة >>>>>>>>
+# تم حذف دالة change_price القديمة هنا، حيث تم دمج وظيفتها في set_config_value الجديدة
 
 # معالج عام لأوامر التعيين الخاصة بالمشرف - الحل الأقوى
 @bot.message_handler(func=lambda m: str(m.chat.id) == str(ADMIN_ID) and m.text.strip().startswith("تعيين"))
 def set_config_value(message):
     try:
-        # استخدام التعبير المنتظم لتحليل الرسالة
         m = re.match(r'^تعيين\s+(.+?)\s+(.+)$', message.text.strip())
         if not m:
             bot.reply_to(message, "⚠️ الصيغة: `تعيين [اسم الإعداد] [القيمة]`")
@@ -263,15 +262,15 @@ def set_config_value(message):
         raw_key = m.group(1).strip().replace(" ", "")
         value   = m.group(2).strip()
 
-        # قاموس يربط أسماء الإعدادات العربية (بدون مسافات) بمساراتها وقيمها في Firebase
+        # تعريف قاموس الإعدادات مع معلومات المسار والنوع ومستوى قاعدة البيانات
         settings_map = {
-            "خدمةالعملاء": ("customer_service_username", value),
-            "رابطالبرنامج": ("program_download_link", value),
-            "متطلباتالبرنامج": ("program_requirements_text", value),
-            "دليلالمستخدمرابط": ("user_guide_content", {"type": "link", "value": value}),
-            "دليلالمستخدمملف": ("user_guide_content", {"type": "file_id", "value": value}),
-            "دليلالمستخدمعنوان": ("user_guide_content", {"caption": value}),
-            "سعرالاشتراك": ("price", float(value)) # معالجة السعر كـ float
+            "خدمةالعملاء": {"path": "customer_service_username", "type": "string", "db_level": "settings"},
+            "رابطالبرنامج": {"path": "program_download_link", "type": "string", "db_level": "settings"},
+            "متطلباتالبرنامج": {"path": "program_requirements_text", "type": "string", "db_level": "settings"},
+            "دليلالمستخدمرابط": {"path": "user_guide_content", "type": "user_guide_link", "db_level": "settings"},
+            "دليلالمستخدمملف": {"path": "user_guide_content", "type": "user_guide_file_id", "db_level": "settings"},
+            "دليلالمستخدمعنوان": {"path": "user_guide_content", "type": "user_guide_caption", "db_level": "settings"},
+            "سعرالاشتراك": {"path": "price", "type": "float", "db_level": "config"} # "type": "float" يشير لضرورة التحويل
         }
 
         if raw_key not in settings_map:
@@ -282,22 +281,37 @@ def set_config_value(message):
                 "• `سعر الاشتراك`")
             return
 
-        # جلب مسار Firebase والقيمة المراد تعيينها من القاموس
-        path, setting_value = settings_map[raw_key]
+        setting_info = settings_map[raw_key]
+        path = setting_info["path"]
+        setting_type = setting_info["type"]
+        db_level = setting_info["db_level"]
 
-        # تحديث Firebase بناءً على المسار
-        if path == "user_guide_content":
-            # تحديث جزء معين من كائن دليل المستخدم
-            db.child("config").child("settings").child(path).update(setting_value)
-        elif path == "price":
-            # تعيين السعر مباشرة تحت config
-            db.child("config").child(path).set(setting_value)
-        else:
-            # تعيين باقي الإعدادات تحت config/settings
-            db.child("config").child("settings").child(path).set(setting_value)
+        # تحديد القيمة التي سيتم حفظها بناءً على نوع الإعداد
+        value_to_save = value # القيمة الافتراضية هي النص الخام
 
+        if setting_type == "float":
+            value_to_save = float(value) # يتم التحويل إلى float فقط إذا كان النوع "float"
+        elif setting_type == "user_guide_link":
+            db.child("config").child(db_level).child(path).update({"type": "link", "value": value})
+            bot.reply_to(message, f"✅ تم تعيين {m.group(1)} بنجاح.")
+            return # الخروج بعد تحديث دليل المستخدم
+        elif setting_type == "user_guide_file_id":
+            db.child("config").child(db_level).child(path).update({"type": "file_id", "value": value})
+            bot.reply_to(message, f"✅ تم تعيين {m.group(1)} بنجاح.")
+            return # الخروج بعد تحديث دليل المستخدم
+        elif setting_type == "user_guide_caption":
+            db.child("config").child(db_level).child(path).update({"caption": value})
+            bot.reply_to(message, f"✅ تم تعيين {m.group(1)} بنجاح.")
+            return # الخروج بعد تحديث دليل المستخدم
+
+        # حفظ القيمة في Firebase بناءً على مستوى قاعدة البيانات
+        if db_level == "config":
+            db.child("config").child(path).set(value_to_save)
+        elif db_level == "settings":
+            db.child("config").child("settings").child(path).set(value_to_save)
+        
         bot.reply_to(message, f"✅ تم تعيين {m.group(1)} بنجاح.")
-    except ValueError: # لمعالجة خطأ التحويل إلى float إذا كانت قيمة السعر غير صحيحة
+    except ValueError: # Catch specific error for float conversion
         bot.reply_to(message, "⚠️ قيمة السعر يجب أن تكون رقماً صحيحاً أو عشرياً.")
     except Exception as e:
         bot.reply_to(message, f"⚠️ حدث خطأ أثناء تعيين الإعداد: {e}\n"
@@ -345,21 +359,21 @@ def create_checkout_link(chat_id: str) -> str:
     payload = {
         "amount": amount,
         "currency": "SAR",
-        "description": "اشتراك SIGMATOR BOT", # تم تغيير الوصف ليتناسب مع اقتراحك
-        "callback_url": "https://yourdomain.com/moyasar_webhook", # رابط الويب هوك الخاص بك
-        "success_url": "https://yourdomain.com/success", # رابط النجاح بعد الدفع
-        "metadata": {"telegram_chat_id": chat_id} # معرف المستخدم لدينا
+        "description": "اشتراك SIGMATOR BOT",
+        "callback_url": "https://yourdomain.com/moyasar_webhook",
+        "success_url": "https://yourdomain.com/success",
+        "metadata": {"telegram_chat_id": chat_id}
     }
 
-    print(f"Moyasar Invoice Payload: {payload}") # طباعة الحمولة للتحقق
+    print(f"Moyasar Invoice Payload: {payload}")
 
     r = requests.post("https://api.moyasar.com/v1/invoices", headers=headers, json=payload)
-    r.raise_for_status() # إظهار خطأ إذا كانت الحالة غير 2xx
+    r.raise_for_status()
 
     response_data = r.json()
-    print(f"Moyasar Invoice Response: {response_data}") # طباعة الاستجابة للتحقق
+    print(f"Moyasar Invoice Response: {response_data}")
 
-    return response_data["url"] # فلد «url» يحوى رابط صفحة الدفع
+    return response_data["url"]
 
 # بدء تشغيل البوت
 bot.polling()
