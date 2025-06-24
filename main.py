@@ -5,9 +5,11 @@ import datetime
 import pyrebase
 import os
 from dotenv import load_dotenv
+import base64 # تم التأكد من وجود هذا الاستيراد
+import re     # <<<<<<< تم إضافة هذا الاستيراد للتعابير المنتظمة
+
 # افتراض وجود ملف keep_alive.py منفصل لتشغيل التطبيق باستمرار
 from keep_alive import keep_alive
-import base64 # <<<<<<< تم إضافة هذا الاستيراد هنا
 
 # تحميل متغيرات البيئة من ملف .env
 load_dotenv()
@@ -28,8 +30,7 @@ db = firebase.database()
 
 # متغيرات البوت من متغيرات البيئة
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-# تم تغيير TAP_SECRET_KEY إلى MOYASAR_SECRET_KEY
-MOYASAR_SECRET_KEY = os.getenv("MOYASAR_SECRET_KEY")
+MOYASAR_SECRET_KEY = os.getenv("MOYASAR_SECRET_KEY") # مفتاح Moyasar السري
 ADMIN_ID = os.getenv("ADMIN_ID") # معرف المشرف
 
 # تهيئة البوت
@@ -269,41 +270,36 @@ def set_config_value(message):
     الصيغة: تعيين [اسم_الإعداد] [القيمة]
     """
     try:
-        # أضفنا أسطر طباعة هنا للمساعدة في تصحيح أخطاء أوامر المشرف
-        print(f"Admin command received: '{message.text}'")
-        parts = message.text.strip().split(' ', 2) # تقسيم الرسالة إلى 3 أجزاء كحد أقصى
-        print(f"Parts after split: {parts}") # طباعة الأجزاء بعد التقسيم
-
-        if len(parts) < 3:
-            bot.reply_to(message, "⚠️ الصيغة الصحيحة: `تعيين [اسم_الإعداد] [القيمة]`")
+        # استخدام التعبير المنتظم لتحليل الرسالة
+        m = re.match(r'^تعيين\s+(.+?)\s+(.+)$', message.text.strip())
+        if not m:
+            bot.reply_to(message, "⚠️ الصيغة: `تعيين [اسم الإعداد] [القيمة]`")
             return
 
-        setting_key_raw = parts[1] # الجزء الثاني هو اسم الإعداد (مثل "خدمة العملاء")
-        value = parts[2] # الجزء الثالث هو القيمة
-        
-        print(f"Detected setting_key_raw: '{setting_key_raw}'") # طباعة اسم الإعداد المكتشف
-        # مقارنة دقيقة للتأكد من عدم وجود مسافات زائدة
-        print(f"Comparison with 'خدمة العملاء': {setting_key_raw == 'خدمة العملاء'}")
+        setting_key_raw = m.group(1).strip() # يمسك اسم الإعداد بالكامل
+        value = m.group(2).strip()           # يمسك القيمة المتبقية
+
+        # أسطر الطباعة للمساعدة في تصحيح الأخطاء (يمكن إزالتها لاحقاً)
+        print(f"Admin command received: '{message.text}'")
+        print(f"Parsed setting_key_raw: '{setting_key_raw}'")
+        print(f"Parsed value: '{value}'")
 
         if setting_key_raw == "خدمة العملاء":
-            db.child("config").child("settings").child("customer_service_username").set(value)
+            db.child("config/settings/customer_service_username").set(value)
             bot.reply_to(message, f"✅ تم تعيين اسم مستخدم خدمة العملاء إلى: @{value}")
         elif setting_key_raw == "رابط البرنامج":
-            db.child("config").child("settings").child("program_download_link").set(value)
-            bot.reply_to(message, f"✅ تم تعيين رابط تحميل البرنامج إلى: {value}")
+            db.child("config/settings/program_download_link").set(value)
+            bot.reply_to(message, "✅ تم تعيين رابط البرنامج.")
         elif setting_key_raw == "متطلبات البرنامج":
             db.child("config").child("settings").child("program_requirements_text").set(value)
-            bot.reply_to(message, f"✅ تم تعيين متطلبات البرنامج بنجاح.")
+            bot.reply_to(message, "✅ تم تعيين متطلبات البرنامج بنجاح.")
         elif setting_key_raw == "دليل المستخدم رابط":
-            # تحديث نوع وقيمة دليل المستخدم إلى رابط
             db.child("config").child("settings").child("user_guide_content").update({"type": "link", "value": value})
             bot.reply_to(message, f"✅ تم تعيين رابط دليل المستخدم إلى: {value}")
         elif setting_key_raw == "دليل المستخدم ملف":
-            # تحديث نوع وقيمة دليل المستخدم إلى معرف ملف
             db.child("config").child("settings").child("user_guide_content").update({"type": "file_id", "value": value})
             bot.reply_to(message, f"✅ تم تعيين معرف ملف دليل المستخدم إلى: {value}")
         elif setting_key_raw == "دليل المستخدم عنوان":
-            # تحديث عنوان (caption) دليل المستخدم
             db.child("config").child("settings").child("user_guide_content").update({"caption": value})
             bot.reply_to(message, f"✅ تم تعيين عنوان دليل المستخدم إلى: {value}")
         else:
@@ -316,7 +312,7 @@ def set_config_value(message):
                                   "`دليل المستخدم عنوان`")
     except Exception as e:
         bot.reply_to(message, f"⚠️ حدث خطأ أثناء تعيين الإعداد: {e}\n"
-                              "تأكد من استخدام الصيغة الصحيحة: `تعيين [اسم_الإعداد] [القيمة]`")
+                              "تأكد من استخدام الصيغة الصحيحة: `تعيين [اسم الإعداد] [القيمة]`")
 
 @bot.message_handler(func=lambda message: str(message.chat.id) == ADMIN_ID, content_types=['document'])
 def get_admin_file_id(message):
@@ -340,52 +336,41 @@ def get_current_price():
     price = db.child("config").child("price").get().val()
     return float(price) if price else 350.0
 
-def create_checkout_link(internal_id):
+def create_checkout_link(chat_id: str) -> str:
     """
-    ينشئ رابط دفع جديد باستخدام Moyasar API.
+    ينشئ رابط صفحة دفع جاهزة باستخدام Moyasar Invoices API.
     """
-    # تصحيح صيغة المصادقة الأساسية (Basic Auth) لـ Moyasar
-    auth_string = f"{MOYASAR_SECRET_KEY}:" # السلسلة التي سيتم تشفيرها (المفتاح + :)
-    encoded_auth_string = base64.b64encode(auth_string.encode()).decode() # التشفير بـ Base64
+    # التأكد أنّ المتغيِّر مضبوط فى البيئة
+    if not MOYASAR_SECRET_KEY:
+        raise RuntimeError("MOYASAR_SECRET_KEY غير مضبوط فى البيئة")
+
+    # Basic-Auth (اسم المستخدم = المفتاح، كلمة المرور فارغة)
+    auth_header = base64.b64encode(f"{MOYASAR_SECRET_KEY}:".encode()).decode()
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Basic {encoded_auth_string}" # <<<<<<< هذا السطر تم تعديله وهو الأهم
+        "Authorization": f"Basic {auth_header}"
     }
-    # المبلغ بالهللة (cent) لذلك نضرب السعر في 100
-    amount_in_halalas = int(get_current_price() * 100)
 
+    amount = int(get_current_price() * 100)          # بالهللة
     payload = {
-        "amount": amount_in_halalas,
+        "amount": amount,
         "currency": "SAR",
-        "description": "اشتراك خدمة التليجرام بوت",
-        "callback_url": "https://yourdomain.com/moyasar_webhook", # هذا هو رابط الويب هوك الجديد
-        "metadata": {
-            "telegram_chat_id": internal_id # استخدام internal_id لتتبع المستخدم
-        },
-        "source": {
-            "type": "invoice", # يمكن أن يكون "creditcard", "stcpay", "applepay", "mada", "sadad" إلخ
-                               # اختر "invoice" إذا كنت تريد Moyasar لتوليد صفحة دفع
-            "invoice": {
-                "redirect_url": "https://yourdomain.com/success" # رابط النجاح بعد الدفع
-            }
-        }
+        "description": "اشتراك SIGMATOR BOT", # تم تغيير الوصف ليتناسب مع اقتراحك
+        "callback_url": "https://yourdomain.com/moyasar_webhook", # رابط الويب هوك الخاص بك
+        "success_url": "https://yourdomain.com/success", # رابط النجاح بعد الدفع
+        "metadata": {"telegram_chat_id": chat_id} # معرف المستخدم لدينا
     }
-    # طباعة الحمولة للتحقق
-    print(f"Moyasar Payload: {payload}")
-    
-    response = requests.post("https://api.moyasar.com/v1/payments", headers=headers, json=payload)
-    response.raise_for_status() # إظهار خطأ إذا كانت الحالة غير 2xx
 
-    response_data = response.json()
-    # طباعة استجابة Moyasar للتحقق
-    print(f"Moyasar Response: {response_data}")
+    print(f"Moyasar Invoice Payload: {payload}") # طباعة الحمولة للتحقق
 
-    # Moyasar ترجع رابط التحويل في source.transaction_url
-    if response_data.get("status") == "initiated" and response_data.get("source", {}).get("transaction_url"):
-        return response_data["source"]["transaction_url"]
-    else:
-        raise Exception(f"Failed to create Moyasar payment: {response_data.get('message', 'Unknown error')}")
+    r = requests.post("https://api.moyasar.com/v1/invoices", headers=headers, json=payload) # <<<<< تم تغيير هذا السطر
+    r.raise_for_status() # إظهار خطأ إذا كانت الحالة غير 2xx
+
+    response_data = r.json()
+    print(f"Moyasar Invoice Response: {response_data}") # طباعة الاستجابة للتحقق
+
+    return response_data["url"] # <<<<< تم تغيير هذا السطر، فلد «url» يحوى رابط صفحة الدفع
 
 # بدء تشغيل البوت
 bot.polling()
