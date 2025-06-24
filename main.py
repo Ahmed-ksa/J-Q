@@ -239,7 +239,7 @@ def set_config_value(message):
         key   = m.group(1).strip()
         value = m.group(2).strip()
 
-        if key == "خدمة العملاء":
+        if key == " خدمة العملاء ":
             db.child("config/settings/customer_service_username").set(value)
             bot.reply_to(message, f"✅ تم تحديث خدمة العملاء إلى @{value}")
         elif key == "رابط البرنامج":
