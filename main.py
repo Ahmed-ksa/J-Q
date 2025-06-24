@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 # افتراض وجود ملف keep_alive.py منفصل لتشغيل التطبيق باستمرار
 from keep_alive import keep_alive
+import base64 # <<<<<<< تم إضافة هذا الاستيراد هنا
 
 # تحميل متغيرات البيئة من ملف .env
 load_dotenv()
@@ -268,13 +269,21 @@ def set_config_value(message):
     الصيغة: تعيين [اسم_الإعداد] [القيمة]
     """
     try:
+        # أضفنا أسطر طباعة هنا للمساعدة في تصحيح أخطاء أوامر المشرف
+        print(f"Admin command received: '{message.text}'")
         parts = message.text.strip().split(' ', 2) # تقسيم الرسالة إلى 3 أجزاء كحد أقصى
+        print(f"Parts after split: {parts}") # طباعة الأجزاء بعد التقسيم
+
         if len(parts) < 3:
             bot.reply_to(message, "⚠️ الصيغة الصحيحة: `تعيين [اسم_الإعداد] [القيمة]`")
             return
 
         setting_key_raw = parts[1] # الجزء الثاني هو اسم الإعداد (مثل "خدمة العملاء")
         value = parts[2] # الجزء الثالث هو القيمة
+        
+        print(f"Detected setting_key_raw: '{setting_key_raw}'") # طباعة اسم الإعداد المكتشف
+        # مقارنة دقيقة للتأكد من عدم وجود مسافات زائدة
+        print(f"Comparison with 'خدمة العملاء': {setting_key_raw == 'خدمة العملاء'}")
 
         if setting_key_raw == "خدمة العملاء":
             db.child("config").child("settings").child("customer_service_username").set(value)
@@ -335,9 +344,13 @@ def create_checkout_link(internal_id):
     """
     ينشئ رابط دفع جديد باستخدام Moyasar API.
     """
+    # تصحيح صيغة المصادقة الأساسية (Basic Auth) لـ Moyasar
+    auth_string = f"{MOYASAR_SECRET_KEY}:" # السلسلة التي سيتم تشفيرها (المفتاح + :)
+    encoded_auth_string = base64.b64encode(auth_string.encode()).decode() # التشفير بـ Base64
+
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Basic {MOYASAR_SECRET_KEY}:" # Moyasar uses Basic Auth with secret key
+        "Authorization": f"Basic {encoded_auth_string}" # <<<<<<< هذا السطر تم تعديله وهو الأهم
     }
     # المبلغ بالهللة (cent) لذلك نضرب السعر في 100
     amount_in_halalas = int(get_current_price() * 100)
@@ -352,7 +365,7 @@ def create_checkout_link(internal_id):
         },
         "source": {
             "type": "invoice", # يمكن أن يكون "creditcard", "stcpay", "applepay", "mada", "sadad" إلخ
-                              # اختر "invoice" إذا كنت تريد Moyasar لتوليد صفحة دفع
+                               # اختر "invoice" إذا كنت تريد Moyasar لتوليد صفحة دفع
             "invoice": {
                 "redirect_url": "https://yourdomain.com/success" # رابط النجاح بعد الدفع
             }
